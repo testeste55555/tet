@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>HTML5 Tetris (Home Screen & Online)</title>
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+
+<style>
+  body {
+    background-color: #222;
+    color: #fff;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+    touch-action: none;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+  }
+  
+  /* ==========================================
+     ホーム画面のスタイル
+     ========================================== */
+  #home-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background-color: #1a1a1a;
+    z-index: 100;
+    position: absolute;
+    top: 0;
+    left: 0;
+    padding: 20px;
+    box-sizing: border-box;
+  }
+  #home-screen h1 {
+    font-size: 36px;
+    letter-spacing: 8px;
+    color: #00FFFF;
+    text-shadow: 0 0 10px #00FFFF, 0 0 20px #0088FF;
+    margin-bottom: 30px;
+  }
+  .home-panel {
+    background: #333;
+    padding: 20px;
+    border-radius: 12px;
+    border: 2px solid #555;
+    text-align: center;
+    width: 100%;
+    max-width: 320px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+  }
+  .home-panel p {
+    margin: 10px 0;
+    font-size: 14px;
+    color: #ddd;
+  }
+  .id-display {
+    font-size: 20px;
+    font-weight: bold;
+    color: #FFD700;
+    letter-spacing: 2px;
+    padding: 10px;
+    background: #222;
+    border-radius: 8px;
+    border: 1px dashed #FFD700;
+    margin-bottom: 20px;
+    user-select: all; /* IDをコピーしやすくする */
+  }
+  .input-group {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 15px;
+  }
+  input[type="text"] {
+    padding: 10px;
+    width: 60%;
+    font-size: 14px;
+    border-radius: 6px;
+    border: 1px solid #777;
+    background: #111;
+    color: #fff;
+    text-align: center;
+  }
+  button.connect-btn {
+    padding: 10px 15px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  button.connect-btn:active { background-color: #45a049; }
+  
+  #conn-status {
+    margin-top: 15px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #bbb;
+  }
+
+  button.start-btn {
+    margin-top: 40px;
+    padding: 15px 40px;
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: 3px;
+    background: linear-gradient(45deg, #FF007F, #FF8C00);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    box-shadow: 0 4px 15px rgba(255, 140, 0, 0.5);
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  button.start-btn:active {
+    transform: scale(0.95);
+  }
+
+  .instructions {
+    margin-top: 30px;
+    font-size: 12px;
+    color: #888;
+    line-height: 1.6;
+    text-align: center;
+  }
+
+  /* ==========================================
+     ゲーム画面のスタイル
+     ========================================== */
+  #game-ui {
+    display: none; /* 初期状態では非表示 */
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    padding-top: 10px;
+  }
+  #game-ui.active {
+    display: flex; /* ゲーム開始時に表示 */
+  }
+
+  #game-ui h1 {
+    margin: 0 0 5px 0;
+    letter-spacing: 5px;
+    color: #f0f0f0;
+    font-size: 18px;
+  }
+
+  #game-container {
+    display: flex;
+    flex-direction: row;
+    gap: 5px;
+    justify-content: center;
+    align-items: stretch;
+    width: 100%;
+    max-width: 600px;
+    padding: 0 5px;
+    box-sizing: border-box;
+  }
+  
+  #canvas-wrapper { position: relative; width: 45vw; max-width: 240px; }
+  #tetris {
+    width: 100%; height: auto; aspect-ratio: 1 / 2;
+    background-color: #111; border: 2px solid #555; border-radius: 4px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.8); display: block;
+  }
+
+  .center-panel {
+    width: 25vw; max-width: 120px;
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .info-box {
+    background: #333; padding: 5px; border-radius: 8px;
+    border: 2px solid #555; text-align: center;
+  }
+  .info-box h2 { margin: 0 0 3px 0; font-size: 11px; color: #bbb; }
+  #next-canvas { width: 100%; height: auto; aspect-ratio: 1 / 1; background-color: #111; border-radius: 4px; }
+  #score { color: #4CAF50; font-size: 16px; font-weight: bold; }
+  
+  .opponent-wrapper {
+    width: 25vw; max-width: 120px;
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+  }
+  #opponent-tetris {
+    width: 100%; height: auto; aspect-ratio: 1 / 2;
+    background-color: #1a1a1a; border: 2px solid #555; border-radius: 4px; display: block;
+  }
+
+  /* エフェクト */
+  @keyframes shake {
+    0%, 100% { transform: translate(0, 0); }
+    20% { transform: translate(-2px, -2px); }
+    40% { transform: translate(2px, 0px); }
+    60% { transform: translate(-2px, 2px); }
+    80% { transform: translate(2px, -2px); }
+  }
+  .shake-effect { animation: shake 0.3s; }
+  
+  .floating-msg {
+    position: absolute; left: 50%; transform: translate(-50%, -50%) scale(0.5);
+    color: #FFF; font-size: 20px; font-weight: 900; pointer-events: none; opacity: 0; z-index: 10;
+    text-align: center; width: 150%; text-shadow: 0 0 10px #fff;
+  }
+  #action-msg { top: 40%; }
+  #speed-up-msg { top: 60%; }
+  
+  @keyframes popupFade {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+    80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+  }
+  .active-anim { animation: popupFade 1.2s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+</style>
+</head>
+<body>
+
+<div id="home-screen">
+  <h1>TETRIS</h1>
+  <div class="home-panel">
+    <p>あなたのID</p>
+    <div class="id-display" id="my-id-display">取得中...</div>
+    
+    <p>対戦相手のIDを入力</p>
+    <div class="input-group">
+      <input type="text" id="opp-id-input" placeholder="IDをペースト">
+      <button class="connect-btn" onclick="connectToPeer()">接続</button>
+    </div>
+    <div id="conn-status">準備完了</div>
+  </div>
+
+  <button class="start-btn" onclick="requestStartGame()">GAME START</button>
+
+  <div class="instructions">
+    ※ 1人で遊ぶ場合はそのまま「START」<br>
+    ※ 対戦する場合は接続完了後に「START」
+  </div>
+</div>
+
+<div id="game-ui">
+  <h1>ONLINE TETRIS</h1>
+  <div id="game-container">
+    <div id="canvas-wrapper">
+      <canvas id="tetris" width="300" height="600"></canvas>
+      <div id="action-msg" class="floating-msg"></div>
+      <div id="speed-up-msg" class="floating-msg">SPEED UP!</div>
+    </div>
+    
+    <div class="center-panel">
+      <div class="info-box">
+        <h2>NEXT</h2>
+        <canvas id="next-canvas" width="120" height="120"></canvas>
+      </div>
+      <div class="info-box">
+        <h2>SCORE</h2>
+        <div id="score">0</div>
+      </div>
+      <div class="info-box" style="font-size: 10px; text-align: left;">
+        <strong>【攻撃ルール】</strong><br>
+        2列: 1段 / 3列: 2段<br>
+        ﾃﾄﾘｽ(4列): 4段<br>
+        B2B(連続): 5段
+      </div>
+    </div>
+
+    <div class="opponent-wrapper">
+      <div class="info-box" style="width: 100%; box-sizing: border-box;">
+        <h2>OPPONENT</h2>
+      </div>
+      <canvas id="opponent-tetris" width="300" height="600"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ==== キャンバス設定 ====
+  const canvas = document.getElementById('tetris');
+  const context = canvas.getContext('2d');
+  context.scale(30, 30);
+
+  const nextCanvas = document.getElementById('next-canvas');
+  const nextContext = nextCanvas.getContext('2d');
+  nextContext.scale(30, 30);
+
+  const oppCanvas = document.getElementById('opponent-tetris');
+  const oppContext = oppCanvas.getContext('2d');
+  oppContext.scale(30, 30); 
+
+  const scoreElement = document.getElementById('score');
+  const colors = [null, '#00FFFF', '#0000FF', '#FFA500', '#FFFF00', '#00FF00', '#800080', '#FF0000', '#666666'];
+
+  // ==== オンライン通信機能 (PeerJS) ====
+  let peer = new Peer(); 
+  let conn = null;
+  let isGameStarted = false; // ゲームが進行中かどうかのフラグ
+
+  // 自分のIDが生成されたらホーム画面に表示
+  peer.on('open', id => {
+    document.getElementById('my-id-display').innerText = id;
+  });
+
+  // 相手から接続された時
+  peer.on('connection', connection => {
+    conn = connection;
+    setupConnection();
+  });
+
+  // 自分から接続する時（ボタンから呼ばれる）
+  function connectToPeer() {
+    const oppId = document.getElementById('opp-id-input').value;
+    if (!oppId) return;
+    document.getElementById('conn-status').innerText = "接続中...";
+    conn = peer.connect(oppId);
+    conn.on('open', () => {
+      setupConnection();
+    });
+  }
+
+  // 接続完了時の処理
+  function setupConnection() {
+    const status = document.getElementById('conn-status');
+    status.innerText = "🟢 接続完了！対戦可能です";
+    status.style.color = "lime";
+
+    // 相手からのデータ受信時の処理
+    conn.on('data', data => {
+      if (data.type === 'start_game') {
+        // 相手がSTARTボタンを押したら、こちらも強制的にスタート
+        startGame();
+      } else if (data.type === 'board' && isGameStarted) {
+        drawOpponentBoard(data.matrix);
+      } else if (data.type === 'attack' && isGameStarted) {
+        receiveGarbage(data.lines);
+      }
+    });
+
+    // 通信確立後、常に盤面を送信（ゲーム開始前は空の盤面が送られる）
+    setInterval(sendBoardToOpponent, 100);
+  }
+
+  function sendBoardToOpponent() {
+    if (conn && conn.open && isGameStarted) {
+      const combinedMatrix = createMatrix(10, 20);
+      board.forEach((row, y) => row.forEach((val, x) => combinedMatrix[y][x] = val));
+      if (player.matrix && !isClearing) {
+        player.matrix.forEach((row, y) => {
+          row.forEach((val, x) => {
+            if (val !== 0 && combinedMatrix[y + player.pos.y]) {
+              combinedMatrix[y + player.pos.y][x + player.pos.x] = val;
+            }
+          });
+        });
+      }
+      conn.send({ type: 'board', matrix: combinedMatrix });
+    }
+  }
+
+  function drawOpponentBoard(matrix) {
+    oppContext.fillStyle = '#1a1a1a';
+    oppContext.fillRect(0, 0, oppCanvas.width, oppCanvas.height);
+    drawMatrix(matrix, {x: 0, y: 0}, oppContext);
+  }
+
+  function receiveGarbage(lines) {
+    for (let i = 0; i < lines; i++) {
+      board.shift();
+      const garbageRow = new Array(10).fill(8); 
+      garbageRow[Math.floor(Math.random() * 10)] = 0; 
+      board.push(garbageRow);
+    }
+    if (collide(board, player)) player.pos.y -= lines;
+  }
+
+  // ==== 画面遷移とゲーム開始制御 ====
+  // 自分がSTARTボタンを押した時
+  function requestStartGame() {
+    // 相手と繋がっていたら、「スタートするよ」という合図を送る
+    if (conn && conn.open) {
+      conn.send({ type: 'start_game' });
+    }
+    startGame();
+  }
+
+  // 実際のゲーム開始処理（両者の端末で実行される）
+  function startGame() {
+    if (isGameStarted) return; // 既に開始済みなら無視
+    isGameStarted = true;
+
+    // ホーム画面を隠して、ゲーム画面を表示
+    document.getElementById('home-screen').style.display = 'none';
+    document.getElementById('game-ui').classList.add('active');
+
+    // パラメータをリセットしてループ開始
+    updateScoreAndSpeed();
+    playerReset();
+    lastTime = performance.now();
+    update(lastTime);
+  }
+
+  // ==== テトリスのゲームロジック ====
+  let touchStartX = null, touchStartY = null, isTapped = false;
+  let isClearing = false, clearTimer = 0, linesToClear = [];      
+  let currentLevel = 0, lastClearWasTetris = false, isTetrisEffect = false;     
+
+  function createPiece(type) {
+    if (type === 'T') return [[0, 6, 0], [6, 6, 6], [0, 0, 0]];
+    if (type === 'O') return [[4, 4], [4, 4]];
+    if (type === 'L') return [[0, 0, 3], [3, 3, 3], [0, 0, 0]];
+    if (type === 'J') return [[2, 0, 0], [2, 2, 2], [0, 0, 0]];
+    if (type === 'I') return [[0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0]];
+    if (type === 'S') return [[0, 5, 5], [5, 5, 0], [0, 0, 0]];
+    if (type === 'Z') return [[7, 7, 0], [0, 7, 7], [0, 0, 0]];
+  }
+
+  function createMatrix(w, h) {
+    const matrix = [];
+    while (h--) matrix.push(new Array(w).fill(0));
+    return matrix;
+  }
+  const board = createMatrix(10, 20);
+
+  function getRandomPieceName() {
+    const pieces = 'ILJOTSZ';
+    return pieces[pieces.length * Math.random() | 0];
+  }
+
+  let nextPieceName = getRandomPieceName();
+  const player = { pos: {x: 0, y: 0}, matrix: null, score: 0 };
+
+  function showTextEffect(elementId, text, shadowColor) {
+    const msg = document.getElementById(elementId);
+    msg.innerText = text;
+    msg.style.textShadow = `0 0 10px ${shadowColor}, 0 0 20px ${shadowColor}, 0 0 30px #fff`;
+    msg.classList.remove('active-anim');
+    void msg.offsetWidth;
+    msg.classList.add('active-anim');
+  }
+
+  function draw() {
+    context.fillStyle = '#111';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    drawMatrix(board, {x: 0, y: 0}, context);
+    
+    if (!isClearing) {
+      if (player.matrix) drawMatrix(player.matrix, player.pos, context);
+    } else {
+      const alpha = clearTimer / 400;
+      context.fillStyle = isTetrisEffect ? `rgba(0, 255, 255, ${alpha})` : `rgba(255, 255, 255, ${alpha})`;
+      linesToClear.forEach(y => context.fillRect(0, y, 10, 1));
+    }
+  }
+
+  function drawNext() {
+    nextContext.fillStyle = '#111';
+    nextContext.fillRect(0, 0, nextCanvas.width, nextCanvas.height);
+    const m = createPiece(nextPieceName);
+    drawMatrix(m, {x: Math.floor((4 - m[0].length)/2), y: Math.floor((4 - m.length)/2)}, nextContext);
+  }
+
+  function drawMatrix(matrix, offset, ctx) {
+    matrix.forEach((row, y) => {
+      row.forEach((value, x) => {
+        if (value !== 0) {
+          ctx.fillStyle = colors[value];
+          ctx.fillRect(x + offset.x, y + offset.y, 1, 1);
+          ctx.lineWidth = 0.05;
+          ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+          ctx.strokeRect(x + offset.x, y + offset.y, 1, 1);
+        }
+      });
+    });
+  }
+
+  function merge(board, player) {
+    player.matrix.forEach((row, y) => {
+      row.forEach((value, x) => {
+        if (value !== 0) board[y + player.pos.y][x + player.pos.x] = value;
+      });
+    });
+  }
+
+  function collide(board, player) {
+    const m = player.matrix;
+    const o = player.pos;
+    for (let y = 0; y < m.length; ++y) {
+      for (let x = 0; x < m[y].length; ++x) {
+        if (m[y][x] !== 0 && (board[y + o.y] && board[y + o.y][x + o.x]) !== 0) return true;
+      }
+    }
+    return false;
+  }
+
+  function sweep() {
+    linesToClear = [];
+    for (let y = board.length - 1; y >= 0; --y) {
+      let isFull = true;
+      for (let x = 0; x < board[y].length; ++x) {
+        if (board[y][x] === 0 || board[y][x] === 8) { 
+          isFull = false; break;
+        }
+      }
+      if (isFull) linesToClear.push(y);
+    }
+
+    const numLines = linesToClear.length;
+
+    if (numLines > 0) {
+      isClearing = true;
+      clearTimer = 400; 
+      isTetrisEffect = false;
+      let earnedScore = 0;
+      let attackLines = 0; 
+
+      if (numLines === 1) { earnedScore = 100; lastClearWasTetris = false; }
+      else if (numLines === 2) { earnedScore = 300; attackLines = 1; lastClearWasTetris = false; }
+      else if (numLines === 3) { earnedScore = 500; attackLines = 2; lastClearWasTetris = false; }
+      else if (numLines === 4) { 
+        isTetrisEffect = true;
+        document.getElementById('canvas-wrapper').classList.remove('shake-effect');
+        void document.getElementById('canvas-wrapper').offsetWidth;
+        document.getElementById('canvas-wrapper').classList.add('shake-effect');
+
+        if (lastClearWasTetris) {
+          earnedScore = 1200; attackLines = 5; 
+          showTextEffect('action-msg', 'B2B TETRIS!!', '#FF00FF');
+        } else {
+          earnedScore = 800; attackLines = 4;
+          showTextEffect('action-msg', 'TETRIS!', '#00FFFF');
+        }
+        lastClearWasTetris = true; 
+      }
+
+      if (attackLines > 0 && conn && conn.open) {
+        conn.send({ type: 'attack', lines: attackLines });
+      }
+
+      player.score += earnedScore;
+      updateScoreAndSpeed();
+    } else {
+      playerReset(); 
+    }
+  }
+
+  function processClearedLines() {
+    const newBoard = [];
+    board.forEach((row, y) => { if (!linesToClear.includes(y)) newBoard.push(row); });
+    const missingLines = 20 - newBoard.length;
+    for (let i = 0; i < missingLines; i++) newBoard.unshift(new Array(10).fill(0));
+    for (let y = 0; y < 20; y++) board[y] = newBoard[y];
+    playerReset();
+  }
+
+  function rotate(matrix, dir) {
+    for (let y = 0; y < matrix.length; ++y) {
+      for (let x = 0; x < y; ++x) [matrix[x][y], matrix[y][x]] = [matrix[y][x], matrix[x][y]];
+    }
+    if (dir > 0) matrix.forEach(row => row.reverse());
+    else matrix.reverse();
+  }
+
+  function playerRotate(dir) {
+    const pos = player.pos.x;
+    let offset = 1;
+    rotate(player.matrix, dir);
+    while (collide(board, player)) {
+      player.pos.x += offset;
+      offset = -(offset + (offset > 0 ? 1 : -1));
+      if (offset > player.matrix[0].length) {
+        rotate(player.matrix, -dir);
+        player.pos.x = pos;
+        return;
+      }
+    }
+  }
+
+  function playerMove(dir) {
+    player.pos.x += dir;
+    if (collide(board, player)) player.pos.x -= dir;
+  }
+
+  function playerDrop() {
+    player.pos.y++;
+    if (collide(board, player)) {
+      player.pos.y--;
+      merge(board, player);
+      touchStartX = null; touchStartY = null; isTapped = false;
+      sweep(); 
+    }
+    dropCounter = 0;
+  }
+
+  function playerReset() {
+    player.matrix = createPiece(nextPieceName);
+    nextPieceName = getRandomPieceName();
+    drawNext();
+    player.pos.y = 0;
+    player.pos.x = (board[0].length / 2 | 0) - (player.matrix[0].length / 2 | 0);
+
+    if (collide(board, player)) {
+      board.forEach(row => row.fill(0));
+      player.score = 0; currentLevel = 0; lastClearWasTetris = false;
+      updateScoreAndSpeed();
+    }
+  }
+
+  let dropCounter = 0, dropInterval = 1000, lastTime = 0;
+
+  function updateScoreAndSpeed() {
+    scoreElement.innerText = player.score;
+    const newLevel = Math.floor(player.score / 1000);
+    if (newLevel > currentLevel) {
+      currentLevel = newLevel;
+      showTextEffect('speed-up-msg', 'SPEED UP!', '#FF8C00');
+    }
+    const speedMultiplier = 0.75 + (currentLevel * 0.05);
+    dropInterval = 1000 / speedMultiplier;
+  }
+
+  function update(time = 0) {
+    if (!isGameStarted) return; // ゲームが始まっていなければループを回さない
+
+    const deltaTime = time - lastTime;
+    lastTime = time;
+
+    if (isClearing) {
+      clearTimer -= deltaTime;
+      if (clearTimer <= 0) { isClearing = false; processClearedLines(); }
+      draw(); requestAnimationFrame(update); return; 
+    }
+
+    dropCounter += deltaTime;
+    if (dropCounter > dropInterval) playerDrop();
+
+    draw(); 
+    requestAnimationFrame(update);
+  }
+
+  // --- キーボード操作 ---
+  document.addEventListener('keydown', event => {
+    if (!isGameStarted || isClearing) return; 
+    if (event.keyCode === 37) playerMove(-1);
+    else if (event.keyCode === 39) playerMove(1);
+    else if (event.keyCode === 40) playerDrop();
+    else if (event.keyCode === 38) playerRotate(1);
+  });
+
+  // --- タッチ操作 ---
+  const SWIPE_THRESHOLD = 20; 
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault(); 
+    if (!isGameStarted || isClearing) return;
+    touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; isTapped = true;
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (!isGameStarted || isClearing || touchStartX === null || touchStartY === null) return;
+    let diffX = e.touches[0].clientX - touchStartX;
+    let diffY = e.touches[0].clientY - touchStartY;
+    if (Math.abs(diffX) > SWIPE_THRESHOLD) {
+      diffX > 0 ? playerMove(1) : playerMove(-1);
+      touchStartX = e.touches[0].clientX; isTapped = false; 
+    }
+    if (diffY > SWIPE_THRESHOLD) {
+      playerDrop(); touchStartY = e.touches[0].clientY; isTapped = false;
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', e => {
+    e.preventDefault();
+    if (!isGameStarted || isClearing) return;
+    if (isTapped) playerRotate(1);
+    touchStartX = null; touchStartY = null;
+  }, { passive: false });
+
+  // ※ update()はSTARTボタンが押された時に呼ばれるため、ここでは呼び出しません。
+</script>
+</body>
+</html>
