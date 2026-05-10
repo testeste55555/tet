@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Online Tetris (Modern Battle)</title>
+
+<style>
+  :root {
+    --bg-color: #1a1a1a;
+    --panel-bg: #333;
+    --accent: #00FFFF;
+    --danger: #ff5a5a;
+  }
+  body {
+    background-color: #222;
+    color: #fff;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0;
+    padding: 0;
+    touch-action: none;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+  }
+  
+  /* ==========================================
+     ホーム画面
+     ========================================== */
+  #home-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background-color: var(--bg-color);
+    z-index: 100;
+    position: absolute;
+    padding: 20px;
+    box-sizing: border-box;
+  }
+  #home-screen h1 {
+    font-size: 36px;
+    letter-spacing: 8px;
+    color: var(--accent);
+    text-shadow: 0 0 10px var(--accent);
+    margin-bottom: 20px;
+  }
+  .home-panel {
+    background: var(--panel-bg);
+    padding: 20px;
+    border-radius: 12px;
+    border: 2px solid #555;
+    text-align: center;
+    width: 100%;
+    max-width: 320px;
+  }
+  .id-display {
+    font-size: 20px;
+    font-weight: bold;
+    color: #FFD700;
+    background: #222;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px dashed #FFD700;
+    margin-bottom: 20px;
+    user-select: all;
+  }
+  .input-group { display: flex; gap: 5px; margin-top: 10px; }
+  input[type="text"] {
+    flex: 1; padding: 10px; font-size: 14px; border-radius: 6px;
+    border: 1px solid #777; background: #111; color: #fff; text-align: center;
+  }
+  button {
+    padding: 10px 15px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer;
+  }
+  button:active { transform: scale(0.95); }
+  .connect-btn { background-color: #4CAF50; color: white; }
+  .start-1p-btn {
+    margin-top: 30px; padding: 15px 40px; font-size: 18px;
+    background: #555; color: white; border-radius: 50px;
+  }
+
+  /* 対戦依頼通知（モーダル） */
+  #challenge-overlay {
+    display: none;
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85); z-index: 200;
+    flex-direction: column; align-items: center; justify-content: center;
+  }
+  .challenge-box {
+    background: #333; padding: 30px; border-radius: 15px; border: 3px solid var(--accent);
+    text-align: center; box-shadow: 0 0 20px var(--accent);
+  }
+  .challenge-box h2 { color: var(--accent); margin-top: 0; font-size: 24px;}
+  .btn-group { display: flex; gap: 20px; justify-content: center; margin-top: 20px; flex-wrap: wrap; }
+  .accept-btn { background: #4CAF50; color: white; padding: 10px 30px; font-size: 18px; }
+  .reject-btn { background: #f44336; color: white; padding: 10px 30px; font-size: 18px; }
+
+  /* ==========================================
+     ゲーム画面
+     ========================================== */
+  #game-ui { display: none; flex-direction: column; align-items: center; width: 100%; padding-top: 10px; }
+  #game-ui.active { display: flex; }
+
+  /* 1人プレイ時のレイアウト調整 */
+  .single-player #opponent-area { display: none; }
+  .single-player #game-container { justify-content: center; gap: 20px; }
+  .single-player #canvas-wrapper { width: 65vw; max-width: 320px; }
+
+  #game-container {
+    display: flex; flex-direction: row; gap: 5px; justify-content: center;
+    align-items: flex-start; width: 100%; max-width: 800px; padding: 0 5px;
+    box-sizing: border-box;
+  }
+  
+  #canvas-wrapper { position: relative; width: 45vw; max-width: 240px; }
+  #tetris {
+    width: 100%; height: auto; aspect-ratio: 1 / 2;
+    background-color: #111; border: 2px solid #555; border-radius: 4px; display: block;
+    box-shadow: 0 0 10px rgba(0,0,0,0.8);
+  }
+  .side-panel { width: 25vw; max-width: 120px; display: flex; flex-direction: column; gap: 5px; }
+  .info-box { background: #333; padding: 5px; border-radius: 8px; border: 2px solid #555; text-align: center; }
+  .info-box h2 { margin: 0 0 3px 0; font-size: 11px; color: #bbb; }
+  #next-canvas, #hold-canvas { width: 100%; height: auto; aspect-ratio: 1 / 1; background-color: #111; border-radius: 4px; }
+  #hold-box { cursor: pointer; }
+  #score { color: #4CAF50; font-size: 18px; font-weight: bold; }
+  #level { color: #FFD700; font-size: 12px; font-weight: bold; margin-top: 2px; }
+  #pending-garbage { color: var(--danger); font-size: 18px; font-weight: bold; min-height: 22px; }
+  #controls-help { font-size: 10px; color: #aaa; line-height: 1.35; }
+  
+  #opponent-area { width: 25vw; max-width: 120px; }
+  #opponent-tetris { 
+    width: 100%; height: auto; aspect-ratio: 1 / 2; 
+    background-color: #1a1a1a; border: 2px solid #444; border-radius: 4px;
+  }
+
+  /* 勝敗表示 */
+  #result-overlay {
+    display: none;
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 150; background: rgba(0,0,0,0.82);
+    flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 20px; box-sizing: border-box;
+  }
+  #result-text {
+    font-size: 46px; letter-spacing: 3px; margin: 0 0 15px 0;
+    color: #fff; text-shadow: 0 0 12px #fff, 0 0 24px var(--accent);
+  }
+  #result-subtext { color: #ddd; min-height: 20px; margin-bottom: 15px; }
+  .result-btn { padding: 12px 28px; font-size: 17px; border-radius: 30px; color: #fff; }
+  .rematch-btn { background: #4CAF50; }
+  .home-btn { background: #555; }
+  #rematch-actions { display: none; }
+
+  /* エフェクト */
+  .floating-msg {
+    position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%) scale(0.5);
+    color: #FFF; font-size: 20px; font-weight: 900; opacity: 0; z-index: 10;
+    text-align: center; width: 150%; text-shadow: 0 0 10px #fff; pointer-events: none;
+  }
+  @keyframes popupFade {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+    20% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
+    80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
+  }
+  .active-anim { animation: popupFade 1.2s forwards cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+  
+  .shake-effect { animation: shake 0.3s; }
+  @keyframes shake {
+    0%, 100% { transform: translate(0, 0); }
+    25% { transform: translate(-4px, -4px); }
+    50% { transform: translate(4px, 4px); }
+    75% { transform: translate(-4px, 4px); }
+  }
+</style>
+</head>
+<body id="main-body">
+
+<div id="home-screen">
+  <h1>TETRIS</h1>
+  <div class="home-panel">
+    <p>あなたのID（一意）</p>
+    <div class="id-display" id="my-id-display">...</div>
+    
+    <p>対戦を申し込む</p>
+    <div class="input-group">
+      <input type="text" id="opp-id-input" placeholder="相手のIDをいれる">
+      <button class="connect-btn" id="challenge-btn">対戦申込</button>
+    </div>
+    <div id="home-status" style="margin-top:10px; font-size:12px; color:#aaa;"></div>
+  </div>
+
+  <button class="start-1p-btn" id="start-1p-btn">1人で遊ぶ</button>
+</div>
+
+<div id="challenge-overlay">
+  <div class="challenge-box">
+    <h2 id="challenger-id-text"></h2>
+    <p>から対戦依頼が届きました！</p>
+    <div class="btn-group">
+      <button class="accept-btn" id="accept-challenge-btn">受ける</button>
+      <button class="reject-btn" id="reject-challenge-btn">拒否</button>
+    </div>
+  </div>
+</div>
+
+<div id="result-overlay">
+  <h1 id="result-text">GAME OVER</h1>
+  <div id="result-subtext"></div>
+  <div class="btn-group" id="result-actions">
+    <button class="result-btn rematch-btn" id="request-rematch-btn">もう一度</button>
+    <button class="result-btn home-btn" id="back-home-btn">ホームへ</button>
+  </div>
+  <div class="btn-group" id="rematch-actions">
+    <button class="accept-btn" id="accept-rematch-btn">再戦する</button>
+    <button class="reject-btn" id="reject-rematch-btn">断る</button>
+  </div>
+</div>
+
+<div id="game-ui">
+  <div id="game-container">
+    <div id="canvas-wrapper">
+      <canvas id="tetris" width="300" height="600"></canvas>
+      <div id="action-msg" class="floating-msg"></div>
+    </div>
+    
+    <div class="side-panel">
+      <div class="info-box" id="hold-box">
+        <h2>HOLD</h2>
+        <canvas id="hold-canvas" width="120" height="120"></canvas>
+      </div>
+      <div class="info-box">
+        <h2>NEXT</h2>
+        <canvas id="next-canvas" width="120" height="120"></canvas>
+      </div>
+      <div class="info-box">
+        <h2>SCORE</h2>
+        <div id="score">0</div>
+        <div id="level">LV 0</div>
+      </div>
+      <div class="info-box">
+        <h2>GARBAGE</h2>
+        <div id="pending-garbage">0</div>
+      </div>
+      <div class="info-box" id="controls-help">
+        PC: ← → ↓ ↑ / Space / C<br>
+        Tap:回転 Flick↓:落下
+      </div>
+    </div>
+
+    <div id="opponent-area">
+      <div class="info-box" style="margin-bottom:5px;"><h2>OPPONENT</h2></div>
+      <canvas id="opponent-tetris" width="300" height="600"></canvas>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ==== ID固定化ロジック ====
+  function getPersistentId() {
+    let id = null;
+    try {
+      id = localStorage.getItem('tetris-user-id');
+      if (!id) {
+        id = Math.random().toString(36).substring(2, 8).toUpperCase();
+        localStorage.setItem('tetris-user-id', id);
+      }
+    } catch (e) {
+      // localStorage が使えない環境でも、1人プレイは止めない
+      id = Math.random().toString(36).substring(2, 8).toUpperCase();
+    }
+    return id;
+  }
+
+  const MY_ID = getPersistentId();
+  document.getElementById('my-id-display').innerText = MY_ID;
+
+  // ==== 通信設定 (PeerJS) ====
+  // PeerJS が読み込めない環境でも、1人プレイだけは動くようにする
+  let peer = null;
+  let conn = null;
+  let isGameStarted = false;
+  let isMultiplayer = false;
+  let isGameOver = false;
+  let rematchRequestedByMe = false;
+  let rematchRequestedByOpponent = false;
+
+  function initPeerConnection() {
+    if (peer) return;
+    if (!window.Peer) {
+      document.getElementById('home-status').innerText = '通信ライブラリを読み込めませんでした。1人プレイは可能です。';
+      return;
+    }
+
+    try {
+      peer = new Peer(MY_ID);
+      peer.on('connection', connection => {
+        conn = connection;
+        setupConnectionData(conn);
+      });
+      peer.on('error', err => {
+        console.warn('PeerJS error:', err);
+        if (!isGameStarted) {
+          document.getElementById('home-status').innerText = '通信の準備に失敗しました。1人プレイは可能です。';
+        }
+      });
+    } catch (e) {
+      console.warn('PeerJS init failed:', e);
+      document.getElementById('home-status').innerText = '通信の初期化に失敗しました。1人プレイは可能です。';
+    }
+  }
+
+  // 接続された側・した側両方でデータ受信イベントを登録する共通関数
+  function setupConnectionData(connection) {
+    if (connection._tetrisDataSetup) return;
+    connection._tetrisDataSetup = true;
+
+    connection.on('data', data => {
+      if (data.type === 'challenge') {
+        showChallenge(data.from);
+      } else if (data.type === 'accept_challenge') {
+        startGame(true);
+      } else if (data.type === 'reject_challenge') {
+        alert("対戦が拒否されました。");
+        conn = null;
+        document.getElementById('home-status').innerText = "";
+      } else if (data.type === 'board' && isGameStarted) {
+        drawOpponentBoard(data.matrix);
+      } else if (data.type === 'attack' && isGameStarted) {
+        queueGarbage(data.lines);
+      } else if (data.type === 'game_over') {
+        handleOpponentGameOver();
+      } else if (data.type === 'rematch_request') {
+        handleRematchRequest();
+      } else if (data.type === 'rematch_accept') {
+        handleRematchAccept();
+      } else if (data.type === 'rematch_reject') {
+        handleRematchReject();
+      }
+    });
+
+    connection.on('close', () => {
+      if (isMultiplayer && isGameStarted) {
+        finishGame(null, '通信が切断されました', false);
+      }
+    });
+  }
+
+  // 送信側：対戦を申し込むとき
+  function sendChallenge() {
+    const oppId = document.getElementById('opp-id-input').value.trim().toUpperCase();
+    if (!oppId || oppId === MY_ID) return;
+    ensureAudio();
+    if (!peer) {
+      document.getElementById('home-status').innerText = '通信ライブラリが使えないため、対戦はできません。1人プレイは可能です。';
+      return;
+    }
+    document.getElementById('home-status').innerText = "呼び出し中...";
+    conn = peer.connect(oppId);
+    
+    conn.on('open', () => {
+      setupConnectionData(conn);
+      conn.send({ type: 'challenge', from: MY_ID });
+      document.getElementById('home-status').innerText = "相手の承認を待っています...";
+    });
+    
+    conn.on('error', () => {
+      document.getElementById('home-status').innerText = "接続に失敗しました。IDを確認してください。";
+    });
+  }
+
+  function showChallenge(fromId) {
+    document.getElementById('challenger-id-text').innerText = fromId;
+    document.getElementById('challenge-overlay').style.display = 'flex';
+  }
+
+  function acceptChallenge() {
+    ensureAudio();
+    document.getElementById('challenge-overlay').style.display = 'none';
+    if (conn && conn.open) {
+      conn.send({ type: 'accept_challenge' });
+      startGame(true);
+    }
+  }
+
+  function rejectChallenge() {
+    document.getElementById('challenge-overlay').style.display = 'none';
+    if (conn && conn.open) conn.send({ type: 'reject_challenge' });
+    conn = null;
+  }
+
+  // ==== ゲーム画面制御とループ ====
+  let animationId = null;
+  let syncInterval = null;
+
+  function startGame(multi) {
+    ensureAudio();
+    stopLoops();
+    isMultiplayer = multi;
+    isGameStarted = true;
+    isGameOver = false;
+    rematchRequestedByMe = false;
+    rematchRequestedByOpponent = false;
+    
+    const body = document.getElementById('main-body');
+    if (!multi) body.classList.add('single-player');
+    else body.classList.remove('single-player');
+    
+    document.getElementById('home-screen').style.display = 'none';
+    document.getElementById('result-overlay').style.display = 'none';
+    document.getElementById('rematch-actions').style.display = 'none';
+    document.getElementById('result-actions').style.display = 'flex';
+    document.getElementById('game-ui').classList.add('active');
+    document.getElementById('home-status').innerText = "";
+
+    resetGameState();
+
+    if (multi) syncInterval = setInterval(sendBoardToOpponent, 100);
+
+    lastTime = performance.now();
+    update(lastTime);
+  }
+
+  function stopLoops() {
+    if (animationId) cancelAnimationFrame(animationId);
+    if (syncInterval) clearInterval(syncInterval);
+    animationId = null;
+    syncInterval = null;
+  }
+
+  function backToHome() {
+    stopLoops();
+    isGameStarted = false;
+    isGameOver = false;
+    document.getElementById('result-overlay').style.display = 'none';
+    document.getElementById('game-ui').classList.remove('active');
+    document.getElementById('home-screen').style.display = 'flex';
+    document.getElementById('home-status').innerText = "";
+  }
+
+  // ==== テトリス基本ロジック ====
+  const canvas = document.getElementById('tetris');
+  const context = canvas.getContext('2d');
+  context.scale(30, 30);
+  const nextContext = document.getElementById('next-canvas').getContext('2d');
+  nextContext.scale(30, 30);
+  const holdContext = document.getElementById('hold-canvas').getContext('2d');
+  holdContext.scale(30, 30);
+  const oppContext = document.getElementById('opponent-tetris').getContext('2d');
+  oppContext.scale(30, 30);
+
+  const colors = [null, '#00FFFF', '#0000FF', '#FFA500', '#FFFF00', '#00FF00', '#800080', '#FF0000', '#666666'];
+  const board = Array.from({length: 20}, () => Array(10).fill(0));
+  const player = { pos: {x: 0, y: 0}, matrix: null, score: 0, pieceName: null };
+
+  let pieceBag = [];
+  let nextPieceName = null;
+  let holdPieceName = null;
+  let canHold = true;
+  let pendingGarbage = 0;
+  let lastClearWasTetris = false;
+  let isClearing = false;
+  let clearTimer = 0;
+  let linesToClear = [];
+  let dropCounter = 0;
+  let dropInterval = 1000;
+  let lastTime = 0;
+  let currentLevel = 0;
+
+  function refillBag() {
+    pieceBag = "ILJOTSZ".split('');
+    for (let i = pieceBag.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pieceBag[i], pieceBag[j]] = [pieceBag[j], pieceBag[i]];
+    }
+  }
+
+  function getNextPieceName() {
+    if (pieceBag.length === 0) refillBag();
+    return pieceBag.pop();
+  }
+
+  function resetGameState() {
+    board.forEach(row => row.fill(0));
+    pieceBag = [];
+    nextPieceName = getNextPieceName();
+    holdPieceName = null;
+    canHold = true;
+    pendingGarbage = 0;
+    lastClearWasTetris = false;
+    isClearing = false;
+    clearTimer = 0;
+    linesToClear = [];
+    dropCounter = 0;
+    player.score = 0;
+    player.matrix = null;
+    player.pieceName = null;
+    currentLevel = 0;
+    updateScoreAndSpeed(false);
+    updateGarbageWarning();
+    drawHold();
+    clearOpponentBoard();
+    playerReset();
+  }
+
+  function sendBoardToOpponent() {
+    if (conn && conn.open && isGameStarted) {
+      const m = board.map(r => [...r]);
+      if (player.matrix && !isClearing) {
+        player.matrix.forEach((row, y) => row.forEach((v, x) => {
+          if (v && m[y + player.pos.y]) m[y + player.pos.y][x + player.pos.x] = v;
+        }));
+      }
+      conn.send({ type: 'board', matrix: m });
+    }
+  }
+
+  function drawOpponentBoard(m) {
+    oppContext.fillStyle = '#1a1a1a';
+    oppContext.fillRect(0,0,10,20);
+    m.forEach((row, y) => row.forEach((v, x) => {
+      if (v) drawCell(oppContext, x, y, v);
+    }));
+  }
+
+  function clearOpponentBoard() {
+    oppContext.fillStyle = '#1a1a1a';
+    oppContext.fillRect(0,0,10,20);
+  }
+
+  function createPiece(t) {
+    if (t === 'T') return [[0, 6, 0], [6, 6, 6], [0, 0, 0]];
+    if (t === 'O') return [[4, 4], [4, 4]];
+    if (t === 'L') return [[0, 0, 3], [3, 3, 3], [0, 0, 0]];
+    if (t === 'J') return [[2, 0, 0], [2, 2, 2], [0, 0, 0]];
+    if (t === 'I') return [[0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0]];
+    if (t === 'S') return [[0, 5, 5], [5, 5, 0], [0, 0, 0]];
+    if (t === 'Z') return [[7, 7, 0], [0, 7, 7], [0, 0, 0]];
+  }
+
+  function collide(b, p) {
+    const [m, o] = [p.matrix, p.pos];
+    for (let y = 0; y < m.length; ++y) {
+      for (let x = 0; x < m[y].length; ++x) {
+        if (m[y][x] !== 0 && (b[y + o.y] && b[y + o.y][x + o.x]) !== 0) return true;
+      }
+    }
+    return false;
+  }
+
+  function merge(b, p) {
+    p.matrix.forEach((row, y) => row.forEach((v, x) => {
+      if (v) b[y + p.pos.y][x + p.pos.x] = v;
+    }));
+  }
+
+  function drawCell(ctx, x, y, value) {
+    ctx.fillStyle = colors[value];
+    ctx.fillRect(x, y, 1, 1);
+    ctx.lineWidth = 0.05;
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    ctx.strokeRect(x, y, 1, 1);
+  }
+
+  function queueGarbage(lines) {
+    pendingGarbage += lines;
+    updateGarbageWarning();
+    showTextEffect('WARNING +' + lines, '#FF5555');
+    playSound('warning');
+  }
+
+  function updateGarbageWarning() {
+    const el = document.getElementById('pending-garbage');
+    el.innerText = pendingGarbage > 0 ? '+' + pendingGarbage : '0';
+    el.style.textShadow = pendingGarbage > 0 ? '0 0 10px #ff5555' : 'none';
+  }
+
+  function addGarbage(lines) {
+    let overflow = false;
+    for (let i = 0; i < lines; i++) {
+      const removed = board.shift();
+      if (removed && removed.some(v => v !== 0)) overflow = true;
+      const row = Array(10).fill(8);
+      row[Math.random() * 10 | 0] = 0;
+      board.push(row);
+    }
+    return overflow;
+  }
+
+  function applyPendingGarbage() {
+    if (pendingGarbage <= 0) return true;
+    const lines = pendingGarbage;
+    pendingGarbage = 0;
+    updateGarbageWarning();
+    const overflow = addGarbage(lines);
+    showTextEffect('GARBAGE +' + lines, '#FF5555');
+    playSound('garbage');
+    if (overflow) {
+      gameOver();
+      return false;
+    }
+    return true;
+  }
+
+  function resolveOutgoingAttack(attackLines) {
+    if (attackLines <= 0) return;
+
+    if (pendingGarbage > 0) {
+      const cancel = Math.min(attackLines, pendingGarbage);
+      pendingGarbage -= cancel;
+      attackLines -= cancel;
+      updateGarbageWarning();
+      showTextEffect('CANCEL ' + cancel, '#FFD700');
+      playSound('cancel');
+    }
+
+    if (attackLines > 0 && conn && conn.open && isMultiplayer) {
+      conn.send({ type: 'attack', lines: attackLines });
+    }
+  }
+
+  function showTextEffect(text, color) {
+    const msg = document.getElementById('action-msg');
+    msg.innerText = text;
+    msg.style.textShadow = `0 0 10px ${color}, 0 0 20px ${color}, 0 0 30px #fff`;
+    msg.classList.remove('active-anim');
+    void msg.offsetWidth;
+    msg.classList.add('active-anim');
+  }
+
+  function sweep() {
+    linesToClear = [];
+    for (let y = 19; y >= 0; y--) {
+      if (board[y].every(v => v !== 0)) linesToClear.push(y);
+    }
+    
+    if (linesToClear.length > 0) {
+      isClearing = true; 
+      clearTimer = 400;
+      
+      const numLines = linesToClear.length;
+      let scoreAdd = 0;
+      let attackLines = 0;
+
+      if (numLines === 1) { scoreAdd = 100; lastClearWasTetris = false; }
+      else if (numLines === 2) { scoreAdd = 300; attackLines = 1; lastClearWasTetris = false; }
+      else if (numLines === 3) { scoreAdd = 500; attackLines = 2; lastClearWasTetris = false; }
+      else if (numLines === 4) {
+        const wrapper = document.getElementById('canvas-wrapper');
+        wrapper.classList.remove('shake-effect');
+        void wrapper.offsetWidth;
+        wrapper.classList.add('shake-effect');
+        
+        if (lastClearWasTetris) {
+          scoreAdd = 1200; attackLines = 5;
+          showTextEffect('B2B TETRIS!!', '#FF00FF');
+          playSound('b2b');
+        } else {
+          scoreAdd = 800; attackLines = 4;
+          showTextEffect('TETRIS!', '#00FFFF');
+          playSound('tetris');
+        }
+        lastClearWasTetris = true;
+      }
+
+      if (numLines < 4) playSound('line');
+      player.score += scoreAdd;
+      updateScoreAndSpeed(true);
+      resolveOutgoingAttack(attackLines);
+    } else {
+      if (!applyPendingGarbage()) return;
+      playerReset();
+    }
+  }
+
+  function playerReset() {
+    canHold = true;
+    player.pieceName = nextPieceName;
+    player.matrix = createPiece(player.pieceName);
+    nextPieceName = getNextPieceName();
+    drawNext();
+    drawHold();
+    player.pos = { y: 0, x: (10 / 2 | 0) - (player.matrix[0].length / 2 | 0) };
+    
+    if (collide(board, player)) gameOver();
+  }
+
+  function updateScoreAndSpeed(showEffect) {
+    const newLevel = Math.floor(player.score / 1000);
+    document.getElementById('score').innerText = player.score;
+    document.getElementById('level').innerText = 'LV ' + newLevel;
+    dropInterval = 1000 / (0.75 + (newLevel * 0.05));
+
+    if (showEffect && newLevel > currentLevel) {
+      showTextEffect('SPEED UP!', '#FFFF00');
+      playSound('level');
+    }
+    currentLevel = newLevel;
+  }
+
+  function drawMiniPiece(ctx, pieceName) {
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, 4, 4);
+    if (!pieceName) return;
+    const m = createPiece(pieceName);
+    const ox = Math.floor((4 - m[0].length) / 2);
+    const oy = Math.floor((4 - m.length) / 2);
+    m.forEach((r, y) => r.forEach((v, x) => {
+      if (v) drawCell(ctx, x + ox, y + oy, v);
+    }));
+  }
+
+  function drawNext() {
+    drawMiniPiece(nextContext, nextPieceName);
+  }
+
+  function drawHold() {
+    drawMiniPiece(holdContext, holdPieceName);
+    document.getElementById('hold-box').style.opacity = canHold ? '1' : '0.55';
+  }
+
+  function holdPiece() {
+    if (!isGameStarted || isClearing || !canHold || !player.matrix) return;
+    ensureAudio();
+    const current = player.pieceName;
+
+    if (holdPieceName === null) {
+      holdPieceName = current;
+      player.pieceName = nextPieceName;
+      player.matrix = createPiece(player.pieceName);
+      nextPieceName = getNextPieceName();
+    } else {
+      const temp = holdPieceName;
+      holdPieceName = current;
+      player.pieceName = temp;
+      player.matrix = createPiece(player.pieceName);
+    }
+
+    player.pos = { y: 0, x: (10 / 2 | 0) - (player.matrix[0].length / 2 | 0) };
+    canHold = false;
+    drawNext();
+    drawHold();
+    playSound('hold');
+    if (collide(board, player)) gameOver();
+  }
+
+  function getGhostPosition() {
+    const ghost = {
+      pos: { x: player.pos.x, y: player.pos.y },
+      matrix: player.matrix
+    };
+    while (!collide(board, ghost)) ghost.pos.y++;
+    ghost.pos.y--;
+    return ghost.pos;
+  }
+
+  function drawGhost() {
+    if (!player.matrix || isClearing) return;
+    const ghostPos = getGhostPosition();
+    context.globalAlpha = 0.25;
+    player.matrix.forEach((r, y) => r.forEach((v, x) => {
+      if (v) {
+        context.fillStyle = colors[v];
+        context.fillRect(x + ghostPos.x, y + ghostPos.y, 1, 1);
+        context.lineWidth = 0.05;
+        context.strokeStyle = '#fff';
+        context.strokeRect(x + ghostPos.x, y + ghostPos.y, 1, 1);
+      }
+    }));
+    context.globalAlpha = 1;
+  }
+
+  function update(time = 0) {
+    if (!isGameStarted || isGameOver) return;
+    
+    const dt = time - lastTime; 
+    lastTime = time;
+
+    if (isClearing) {
+      clearTimer -= dt;
+      if (clearTimer <= 0) {
+        isClearing = false;
+        const removedCount = linesToClear.length;
+        linesToClear.sort((a, b) => b - a).forEach(y => board.splice(y, 1));
+        for (let i = 0; i < removedCount; i++) board.unshift(Array(10).fill(0));
+        playerReset();
+      }
+    } else {
+      dropCounter += dt;
+      if (dropCounter > dropInterval) {
+        playerSoftDrop();
+        dropCounter = 0;
+      }
+    }
+
+    drawGame();
+    animationId = requestAnimationFrame(update);
+  }
+
+  function drawGame() {
+    context.fillStyle = '#111';
+    context.fillRect(0, 0, 10, 20);
+    
+    board.forEach((r, y) => r.forEach((v, x) => { 
+      if (v) drawCell(context, x, y, v);
+    }));
+
+    if (player.matrix && !isClearing) {
+      drawGhost();
+      player.matrix.forEach((r, y) => r.forEach((v, x) => { 
+        if (v) drawCell(context, x + player.pos.x, y + player.pos.y, v);
+      }));
+    } else if (isClearing) {
+      context.fillStyle = (linesToClear.length === 4) ? `rgba(0, 255, 255, ${clearTimer / 400})` : `rgba(255, 255, 255, ${clearTimer / 400})`;
+      linesToClear.forEach(y => context.fillRect(0, y, 10, 1));
+    }
+  }
+
+  // ==== 勝敗処理 ====
+  function gameOver() {
+    if (isGameOver) return;
+    const text = isMultiplayer ? 'YOU LOSE...' : 'GAME OVER';
+    finishGame(false, text, true);
+  }
+
+  function handleOpponentGameOver() {
+    if (isGameOver) return;
+    finishGame(true, 'YOU WIN!', false);
+  }
+
+  function finishGame(didWin, text, notifyOpponent) {
+    stopLoops();
+    isGameStarted = false;
+    isGameOver = true;
+
+    if (notifyOpponent && isMultiplayer && conn && conn.open) {
+      conn.send({ type: 'game_over' });
+    }
+
+    const resultText = document.getElementById('result-text');
+    const subtext = document.getElementById('result-subtext');
+    resultText.innerText = text;
+    resultText.style.color = didWin === true ? '#00FFFF' : didWin === false ? '#ff7777' : '#fff';
+    subtext.innerText = isMultiplayer ? '対戦が終了しました' : 'スコア: ' + player.score;
+    document.getElementById('result-actions').style.display = 'flex';
+    document.getElementById('rematch-actions').style.display = 'none';
+    document.getElementById('result-overlay').style.display = 'flex';
+    playSound(didWin ? 'win' : 'lose');
+  }
+
+  function requestRematch() {
+    ensureAudio();
+    if (!isMultiplayer) {
+      startGame(false);
+      return;
+    }
+
+    if (!conn || !conn.open) {
+      document.getElementById('result-subtext').innerText = '通信が切断されています。ホームに戻ってください。';
+      return;
+    }
+
+    rematchRequestedByMe = true;
+    document.getElementById('result-subtext').innerText = '相手に再戦を申し込みました...';
+    conn.send({ type: 'rematch_request' });
+
+    if (rematchRequestedByOpponent) {
+      conn.send({ type: 'rematch_accept' });
+      startGame(true);
+    }
+  }
+
+  function handleRematchRequest() {
+    rematchRequestedByOpponent = true;
+    if (rematchRequestedByMe) {
+      if (conn && conn.open) conn.send({ type: 'rematch_accept' });
+      startGame(true);
+      return;
+    }
+
+    stopLoops();
+    isGameStarted = false;
+    isGameOver = true;
+    document.getElementById('result-text').innerText = 'REMATCH?';
+    document.getElementById('result-text').style.color = '#00FFFF';
+    document.getElementById('result-subtext').innerText = '相手から再戦申請が届きました';
+    document.getElementById('result-actions').style.display = 'none';
+    document.getElementById('rematch-actions').style.display = 'flex';
+    document.getElementById('result-overlay').style.display = 'flex';
+    playSound('warning');
+  }
+
+  function acceptRematch() {
+    ensureAudio();
+    if (conn && conn.open) conn.send({ type: 'rematch_accept' });
+    startGame(true);
+  }
+
+  function rejectRematch() {
+    if (conn && conn.open) conn.send({ type: 'rematch_reject' });
+    document.getElementById('result-subtext').innerText = '再戦を断りました';
+    document.getElementById('result-actions').style.display = 'flex';
+    document.getElementById('rematch-actions').style.display = 'none';
+  }
+
+  function handleRematchAccept() {
+    startGame(true);
+  }
+
+  function handleRematchReject() {
+    rematchRequestedByMe = false;
+    document.getElementById('result-subtext').innerText = '再戦が拒否されました';
+  }
+
+  // --- 操作系 ---
+  function playerMove(dir) {
+    if (!player.matrix) return;
+    player.pos.x += dir;
+    if (collide(board, player)) player.pos.x -= dir;
+    else playSound('move');
+  }
+
+  function playerSoftDrop() {
+    if (!player.matrix || isClearing) return;
+    player.pos.y++;
+    if (collide(board, player)) {
+      player.pos.y--;
+      merge(board, player);
+      touchStartX = null;
+      playSound('drop');
+      sweep();
+    }
+    dropCounter = 0;
+  }
+
+  function hardDrop() {
+    if (!isGameStarted || isClearing || !player.matrix) return;
+    while (!collide(board, player)) player.pos.y++;
+    player.pos.y--;
+    merge(board, player);
+    touchStartX = null;
+    dropCounter = 0;
+    playSound('harddrop');
+    sweep();
+  }
+
+  function playerRotate() {
+    if (!player.matrix) return;
+    const pos = player.pos.x;
+    let offset = 1;
+    const m = player.matrix;
+    for (let y = 0; y < m.length; ++y) {
+      for (let x = 0; x < y; ++x) [m[x][y], m[y][x]] = [m[y][x], m[x][y]];
+    }
+    m.forEach(r => r.reverse());
+    
+    while (collide(board, player)) {
+      player.pos.x += offset;
+      offset = -(offset + (offset > 0 ? 1 : -1));
+      if (offset > m[0].length) {
+        m.forEach(r => r.reverse());
+        for (let y = 0; y < m.length; ++y) {
+          for (let x = 0; x < y; ++x) [m[x][y], m[y][x]] = [m[y][x], m[x][y]];
+        }
+        player.pos.x = pos;
+        return;
+      }
+    }
+    playSound('rotate');
+  }
+
+  // キーボード
+  document.addEventListener('keydown', e => {
+    if (!isGameStarted || isClearing) return;
+    if ([32, 37, 38, 39, 40].includes(e.keyCode) || e.key === 'c' || e.key === 'C' || e.key === 'Shift') e.preventDefault();
+    ensureAudio();
+
+    if (e.keyCode === 37) playerMove(-1);
+    else if (e.keyCode === 39) playerMove(1);
+    else if (e.keyCode === 40) playerSoftDrop();
+    else if (e.keyCode === 38) playerRotate();
+    else if (e.keyCode === 32) hardDrop();
+    else if (e.key === 'c' || e.key === 'C' || e.key === 'Shift') holdPiece();
+  });
+
+  // タッチ
+  let touchStartX = null, touchStartY = null, touchStartTime = 0, isTapped = false;
+  const SWIPE_THRESHOLD = 20;
+  const HARD_DROP_DISTANCE = 70;
+  const HARD_DROP_TIME = 220;
+
+  canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (!isGameStarted || isClearing) return;
+    ensureAudio();
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    touchStartTime = performance.now();
+    isTapped = true;
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', e => {
+    e.preventDefault();
+    if (!isGameStarted || isClearing || touchStartX === null || touchStartY === null) return;
+
+    const now = performance.now();
+    const dx = e.touches[0].clientX - touchStartX;
+    const dy = e.touches[0].clientY - touchStartY;
+    const elapsed = now - touchStartTime;
+
+    if (dy > HARD_DROP_DISTANCE && elapsed < HARD_DROP_TIME && Math.abs(dy) > Math.abs(dx) * 1.25) {
+      hardDrop();
+      touchStartX = null;
+      touchStartY = null;
+      isTapped = false;
+      return;
+    }
+    
+    if (Math.abs(dx) > SWIPE_THRESHOLD) {
+      playerMove(dx > 0 ? 1 : -1);
+      touchStartX = e.touches[0].clientX;
+      isTapped = false;
+    }
+    
+    if (dy > SWIPE_THRESHOLD) {
+      playerSoftDrop();
+      touchStartY = e.touches[0].clientY;
+      isTapped = false;
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', e => {
+    e.preventDefault();
+    if (!isGameStarted || isClearing) return;
+
+    if (touchStartX !== null && touchStartY !== null && e.changedTouches.length > 0) {
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      const elapsed = performance.now() - touchStartTime;
+      if (dy > HARD_DROP_DISTANCE && elapsed < HARD_DROP_TIME && Math.abs(dy) > Math.abs(dx) * 1.25) {
+        hardDrop();
+        touchStartX = null;
+        touchStartY = null;
+        isTapped = false;
+        return;
+      }
+    }
+
+    if (isTapped) playerRotate();
+    touchStartX = null;
+    touchStartY = null;
+  }, { passive: false });
+
+  // ==== 簡易SE（Web Audio API） ====
+  let audioCtx = null;
+
+  function ensureAudio() {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return;
+    if (!audioCtx) audioCtx = new AudioContextClass();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  function beep(freq, duration, type = 'square', gainValue = 0.035, delay = 0) {
+    if (!audioCtx) return;
+    const start = audioCtx.currentTime + delay;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, start);
+    gain.gain.setValueAtTime(gainValue, start);
+    gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(start);
+    osc.stop(start + duration);
+  }
+
+  function playSound(name) {
+    if (!audioCtx) return;
+    if (name === 'move') beep(220, 0.03, 'square', 0.012);
+    else if (name === 'rotate') beep(330, 0.04, 'square', 0.016);
+    else if (name === 'drop') beep(150, 0.05, 'sawtooth', 0.018);
+    else if (name === 'harddrop') beep(95, 0.08, 'sawtooth', 0.028);
+    else if (name === 'hold') beep(420, 0.06, 'triangle', 0.025);
+    else if (name === 'line') { beep(440, 0.06, 'triangle', 0.03); beep(660, 0.07, 'triangle', 0.025, 0.06); }
+    else if (name === 'tetris') { beep(520, 0.08, 'triangle', 0.035); beep(780, 0.09, 'triangle', 0.035, 0.08); beep(1040, 0.12, 'triangle', 0.03, 0.16); }
+    else if (name === 'b2b') { beep(700, 0.07, 'triangle', 0.035); beep(980, 0.07, 'triangle', 0.035, 0.07); beep(1260, 0.16, 'triangle', 0.035, 0.14); }
+    else if (name === 'warning') beep(180, 0.12, 'sawtooth', 0.035);
+    else if (name === 'garbage') { beep(120, 0.1, 'sawtooth', 0.04); beep(90, 0.12, 'sawtooth', 0.03, 0.08); }
+    else if (name === 'cancel') { beep(600, 0.06, 'triangle', 0.03); beep(460, 0.06, 'triangle', 0.025, 0.06); }
+    else if (name === 'level') { beep(660, 0.08, 'triangle', 0.03); beep(880, 0.1, 'triangle', 0.03, 0.08); }
+    else if (name === 'win') { beep(520, 0.1, 'triangle', 0.035); beep(780, 0.1, 'triangle', 0.035, 0.1); beep(1040, 0.18, 'triangle', 0.035, 0.2); }
+    else if (name === 'lose') { beep(220, 0.12, 'sawtooth', 0.035); beep(150, 0.18, 'sawtooth', 0.03, 0.12); }
+  }
+
+  // ==== UIバインド（inline onclick に頼らない） ====
+  function safeRun(fn, label) {
+    try {
+      fn();
+    } catch (e) {
+      console.error(label + ' failed:', e);
+      const msg = label + 'でエラーが出ました: ' + (e && e.message ? e.message : e);
+      const status = document.getElementById('home-status');
+      if (status) status.innerText = msg;
+      alert(msg);
+    }
+  }
+
+  function bindButton(id, fn, label) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('click', function(e) {
+      e.preventDefault();
+      safeRun(fn, label);
+    });
+  }
+
+  function bindUiEvents() {
+    bindButton('start-1p-btn', function(){ startGame(false); }, '1人プレイ起動');
+    bindButton('challenge-btn', sendChallenge, '対戦申込');
+    bindButton('accept-challenge-btn', acceptChallenge, '対戦承認');
+    bindButton('reject-challenge-btn', rejectChallenge, '対戦拒否');
+    bindButton('request-rematch-btn', requestRematch, '再戦申込');
+    bindButton('back-home-btn', backToHome, 'ホーム復帰');
+    bindButton('accept-rematch-btn', acceptRematch, '再戦承認');
+    bindButton('reject-rematch-btn', rejectRematch, '再戦拒否');
+    bindButton('hold-box', holdPiece, 'ホールド');
+  }
+
+  function loadPeerScriptSafely() {
+    if (window.Peer) {
+      initPeerConnection();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js';
+    script.async = true;
+    script.onload = initPeerConnection;
+    script.onerror = function() {
+      const status = document.getElementById('home-status');
+      if (status) status.innerText = '通信ライブラリを読み込めませんでした。1人プレイは可能です。';
+    };
+    document.head.appendChild(script);
+  }
+
+  // 初期表示
+  drawMiniPiece(nextContext, null);
+  drawMiniPiece(holdContext, null);
+  clearOpponentBoard();
+  bindUiEvents();
+  loadPeerScriptSafely();
+</script>
+</body>
+</html>
