@@ -1,0 +1,79 @@
+# --------------------------------------------------
+# OS-generated files
+# --------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Thumbs.db:encryptable
+Desktop.ini
+$RECYCLE.BIN/
+
+# --------------------------------------------------
+# Editor / IDE settings
+# --------------------------------------------------
+.vscode/
+.idea/
+*.code-workspace
+*.swp
+*.swo
+*~
+
+# --------------------------------------------------
+# Temporary / backup / log files
+# --------------------------------------------------
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+*.rej
+*.log
+*.autosave
+
+# --------------------------------------------------
+# Local environment variables and secrets
+# Keep sample files such as .env.example trackable.
+# --------------------------------------------------
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# --------------------------------------------------
+# JavaScript package managers and local caches
+# The current site does not require these directories.
+# --------------------------------------------------
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/
+.yarn-cache/
+.cache/
+.parcel-cache/
+.vite/
+coverage/
+
+# --------------------------------------------------
+# Python tooling, if used for local maintenance scripts
+# --------------------------------------------------
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# --------------------------------------------------
+# Local-only working directories
+# --------------------------------------------------
+tmp/
+temp/
+.local/
+
+# --------------------------------------------------
+# IMPORTANT: Do not ignore GitHub Pages source files.
+# index.html, clock-calendar-learning/, assets, and
+# .nojekyll must remain trackable and publishable.
+# --------------------------------------------------
