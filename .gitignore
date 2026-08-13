@@ -77,3 +77,65 @@ temp/
 # index.html, clock-calendar-learning/, assets, and
 # .nojekyll must remain trackable and publishable.
 # --------------------------------------------------
+
+# --------------------------------------------------
+# Additional credential / secret protection
+# --------------------------------------------------
+.env*
+!.env.example
+!.env.sample
+
+# Private keys, certificates, PKCS stores, Java keystores
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.crt
+*.cer
+*.der
+*.csr
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+
+# CLI / package-manager credential stores
+.npmrc
+.netrc
+.git-credentials
+
+# Common credential / service-account / token files
+credentials.json
+credentials*.json
+*credentials*.json
+service-account*.json
+*service-account*.json
+service_account*.json
+*service_account*.json
+client_secret*.json
+*client_secret*.json
+secrets*.json
+*secrets*.json
+token*.json
+*token*.json
+*.secrets
+*.token
+
+# Local databases / dumps
+*.db
+*.db3
+*.sqlite
+*.sqlite3
+*.mdb
+*.accdb
+*.dump
+*.sql
+
+# Additional backups / local state
+*.old
+*.save
+*.pid
+*.lock
+*.stackdump
