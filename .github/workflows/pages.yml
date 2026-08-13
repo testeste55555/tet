@@ -1,0 +1,85 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - index.html
+      - clock-calendar-learning/index.html
+      - clock-calendar-learning/hiragana.html
+      - clock-calendar-learning/kanji.html
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Switch Pages source to GitHub Actions
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error --location \
+            --output /tmp/pages-update-response \
+            --write-out '%{http_code}' \
+            --request PUT \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages" \
+            --data '{"build_type":"workflow"}')"
+          if [ "$status" != "204" ]; then
+            echo "Pages source migration failed with HTTP ${status}."
+            cat /tmp/pages-update-response
+            exit 1
+          fi
+          echo "Pages source set to GitHub Actions."
+
+      - name: Prepare explicit Pages artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf _site
+          mkdir -p _site/clock-calendar-learning
+          cp index.html _site/index.html
+          cp clock-calendar-learning/index.html _site/clock-calendar-learning/index.html
+          cp clock-calendar-learning/hiragana.html _site/clock-calendar-learning/hiragana.html
+          cp clock-calendar-learning/kanji.html _site/clock-calendar-learning/kanji.html
+          touch _site/.nojekyll
+
+      - name: Configure Pages
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
+        with:
+          path: ./_site
+          include-hidden-files: true
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128
