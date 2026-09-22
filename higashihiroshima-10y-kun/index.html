@@ -94,6 +94,7 @@ footer{color:#98a2b3;font-size:12px;text-align:center;padding-top:8px}
       <span class="pill" id="arrival">到達目安：—</span>
       <span class="pill" id="periodCount">0期間</span>
     </div>
+    <button class="secondary" id="share" style="width:100%;margin-top:12px">このページを共有</button>
   </section>
 
   <section class="card">
@@ -289,6 +290,18 @@ $('clear').onclick=()=>{
   if(!periods.length) return;
   if(confirm('登録した期間を全部消しますか？')){
     periods=[]; save(); render(); toast('削除しました');
+  }
+};
+$('share').onclick=async()=>{
+  const data={title:'東広島累積10年くん',text:'東広島で暮らした期間を累積して10年まで数えるツール',url:location.href};
+  try{
+    if(navigator.share) await navigator.share(data);
+    else{
+      await navigator.clipboard.writeText(location.href);
+      toast('URLをコピーしました');
+    }
+  }catch(e){
+    if(e && e.name!=='AbortError') toast('共有できませんでした');
   }
 };
 $('copy').onclick=async()=>{
